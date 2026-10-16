@@ -48,8 +48,8 @@ async function getSupply(): Promise<number | null> {
 }
 export async function onRequestGet({ env }: { env: Env }) {
   try {
-    const cached = await env.PI_MARKET_CACHE?.get("pi-market:latest", "json") as Record<string, unknown> | null;
-    if (cached && Number(cached.price_usd) > 0 && (Number(cached.market_cap_usd) > 0 || cached.market_cap_usd === null)) return json({ ...cached, cache: "hit" });
+    const cached = await env.PI_MARKET_CACHE?.get("pi-market:latest", "json") as (Record<string, unknown> & { cached_at?: number }) | null;
+    if (cached && Number(cached.price_usd) > 0 && (Number(cached.market_cap_usd) > 0 || cached.market_cap_usd === null) && Number(cached.cached_at) > 0 && Date.now() / 1000 - Number(cached.cached_at) < 45) return json({ ...cached, cache: "hit" });
   } catch { /* cache is optional */ }
   const results = await Promise.allSettled([fromGate(), fromMexc()]);
   const rows = results.filter((item): item is PromiseFulfilledResult<MarketRow> => item.status === "fulfilled").map(item => item.value);
@@ -75,7 +75,8 @@ export async function onRequestGet({ env }: { env: Env }) {
     source_label: rows.map(row => row.source).join(" + ") + (supply != null ? " + Pi Mainnet supply" : ""),
     sources_used: rows.map(row => row.source),
     updated_at: new Date().toISOString(),
+    cached_at: Math.floor(Date.now() / 1000),
   };
-  try { await env.PI_MARKET_CACHE?.put("pi-market:latest", JSON.stringify(result), { expirationTtl: 30 }); } catch { /* optional */ }
+  try { await env.PI_MARKET_CACHE?.put("pi-market:latest", JSON.stringify(result), { expirationTtl: 45 }); } catch { /* optional */ }
   return json(result);
 }
