@@ -214,7 +214,7 @@ function renderHistory(data) {
   const minPoint = points.reduce((best, p) => !best || Number(p.close) < Number(best.close) ? p : best, null);
   setText(elements.allTimeHighDate, maxPoint ? "Highest daily price · " + historyDate(maxPoint.time) : "No historical point");
   setText(elements.allTimeLowDate, minPoint ? "Lowest daily price · " + historyDate(minPoint.time) : "No historical point");
-  setText(elements.historySource, data.source || "CoinPaprika public historical ticker data");
+  setText(elements.historySource, data.source || "Recorded daily PI price history");
   setText(elements.historyUpdated, "Fetched " + timestamp(data.updated_at));
   setText(elements.historyStatus, points.length + " price points · " + data.interval);
 }
