@@ -112,6 +112,16 @@ async function marketData() {
     volume_24h_usd: volumes.length ? Math.round(volumes.reduce((a, b) => a + b, 0)) : null,
     source_label: rows.map(row => row.source).join(" + ") + (supply != null ? " + Pi Mainnet supply" : ""),
     sources_used: rows.map(row => row.source),
+    exchanges: rows.map(row => ({
+      exchange: row.source.replace(" PI/USDT", ""),
+      pair: "PI/USDT",
+      price_usd: row.price,
+      change_24h_pct: row.change,
+      high_24h_usd: row.high,
+      low_24h_usd: row.low,
+      volume_24h_usd: row.volume,
+    })),
+    price_spread_pct: rows.length > 1 ? Number((((Math.max(...rows.map(row => row.price)) - Math.min(...rows.map(row => row.price))) / price) * 100).toFixed(4)) : null,
     updated_at: new Date().toISOString(),
   });
 }
