@@ -1,3 +1,5 @@
+import "./styles.css";
+
 const API_URL = "/api/market";
 const REFRESH_MS = 60_000;
 
@@ -14,12 +16,13 @@ const elements = {
   detailUpdated: document.getElementById("detailUpdated"),
 };
 
+const hasNumber = value => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
 const usd = (value, digits = 2) => {
-  if (!Number.isFinite(Number(value))) return "—";
+  if (!hasNumber(value)) return "—";
   return Number(value).toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: digits, maximumFractionDigits: digits });
 };
 const compactUsd = value => {
-  if (!Number.isFinite(Number(value))) return "—";
+  if (!hasNumber(value)) return "—";
   const n = Number(value);
   if (n >= 1e12) return "$" + (n / 1e12).toFixed(2) + "T";
   if (n >= 1e9) return "$" + (n / 1e9).toFixed(2) + "B";
@@ -27,7 +30,7 @@ const compactUsd = value => {
   if (n >= 1e3) return "$" + (n / 1e3).toFixed(2) + "K";
   return usd(n, 2);
 };
-const amount = (value, digits = 2) => Number.isFinite(Number(value)) ? Number(value).toLocaleString("en-US", { maximumFractionDigits: digits }) : "—";
+const amount = (value, digits = 2) => hasNumber(value) ? Number(value).toLocaleString("en-US", { maximumFractionDigits: digits }) : "—";
 const timestamp = value => {
   if (!value) return "Time unavailable";
   const date = new Date(value);
@@ -37,7 +40,7 @@ function setText(element, value) {
   if (element) element.textContent = value;
 }
 function formatPrice(value) {
-  if (!Number.isFinite(Number(value))) return "—";
+  if (!hasNumber(value)) return "—";
   const n = Number(value);
   return usd(n, n < 0.01 ? 6 : n < 1 ? 4 : 2);
 }
@@ -45,13 +48,13 @@ function render(data) {
   setText(elements.price, formatPrice(data.price_usd));
   setText(elements.marketCap, compactUsd(data.market_cap_usd));
   setText(elements.volume, compactUsd(data.volume_24h_usd));
-  setText(elements.supply, Number.isFinite(Number(data.circulating_supply)) ? amount(data.circulating_supply, 0) + " PI" : "—");
-  setText(elements.range, Number.isFinite(Number(data.low_24h_usd)) && Number.isFinite(Number(data.high_24h_usd))
+  setText(elements.supply, hasNumber(data.circulating_supply) ? amount(data.circulating_supply, 0) + " PI" : "—");
+  setText(elements.range, hasNumber(data.low_24h_usd) && hasNumber(data.high_24h_usd)
     ? formatPrice(data.low_24h_usd) + " – " + formatPrice(data.high_24h_usd) : "—");
   setText(elements.source, data.source_label || "Public exchange APIs");
   setText(elements.updatedAt, "Updated " + timestamp(data.updated_at));
   setText(elements.detailUpdated, timestamp(data.updated_at));
-  const pct = Number(data.change_24h_pct);
+  const pct = hasNumber(data.change_24h_pct) ? Number(data.change_24h_pct) : NaN;
   if (elements.change) {
     elements.change.classList.toggle("positive", Number.isFinite(pct) && pct >= 0);
     elements.change.classList.toggle("negative", Number.isFinite(pct) && pct < 0);
