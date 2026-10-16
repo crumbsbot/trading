@@ -126,6 +126,59 @@ async function marketData() {
   });
 }
 
+
+const HISTORY_RANGES = new Set(["1mo", "6mo", "1y", "5y", "max"]);
+
+async function historyData(range) {
+  if (!HISTORY_RANGES.has(range)) range = "1y";
+  const interval = range === "max" || range === "5y" ? "1wk" : "1d";
+  const url = "https://query1.finance.yahoo.com/v8/finance/chart/PI35697-USD?range=" + encodeURIComponent(range) + "&interval=" + encodeURIComponent(interval) + "&events=history";
+  const body = await fetchJson(url, 9000);
+  const result = body?.chart?.result?.[0];
+  if (!result) throw new Error(body?.chart?.error?.description || "Yahoo Finance returned no historical data");
+  const quote = result.indicators?.quote?.[0];
+  const timestamps = result.timestamp || [];
+  if (!quote || !timestamps.length) throw new Error("Historical price series is unavailable");
+  const points = timestamps.map((time, i) => ({
+    time: Number(time),
+    open: Number.isFinite(quote.open?.[i]) ? quote.open[i] : null,
+    high: Number.isFinite(quote.high?.[i]) ? quote.high[i] : null,
+    low: Number.isFinite(quote.low?.[i]) ? quote.low[i] : null,
+    close: Number.isFinite(quote.close?.[i]) ? quote.close[i] : null,
+    volume: Number.isFinite(quote.volume?.[i]) ? quote.volume[i] : null
+  })).filter(point => Number.isFinite(point.close) && point.close > 0);
+  if (!points.length) throw new Error("Historical price series contains no valid prices");
+  const meta = result.meta || {};
+  const allPrices = points.map(point => point.close);
+  const highs = points.map(point => point.high).filter(Number.isFinite);
+  const lows = points.map(point => point.low).filter(Number.isFinite);
+  const latest = points[points.length - 1];
+  const previous = points.length > 1 ? points[points.length - 2] : null;
+  return {
+    symbol: meta.symbol || "PI35697-USD",
+    currency: meta.currency || "USD",
+    range,
+    interval,
+    points,
+    statistics: {
+      current_price_usd: Number.isFinite(meta.regularMarketPrice) ? meta.regularMarketPrice : latest.close,
+      previous_close_usd: Number.isFinite(meta.chartPreviousClose) ? meta.chartPreviousClose : (previous ? previous.close : null),
+      open_usd: latest.open,
+      high_52w_usd: Number.isFinite(meta.fiftyTwoWeekHigh) ? meta.fiftyTwoWeekHigh : null,
+      low_52w_usd: Number.isFinite(meta.fiftyTwoWeekLow) ? meta.fiftyTwoWeekLow : null,
+      period_high_usd: highs.length ? Math.max(...highs) : Math.max(...allPrices),
+      period_low_usd: lows.length ? Math.min(...lows) : Math.min(...allPrices),
+      all_time_high_usd: Math.max(...(highs.length ? highs : allPrices)),
+      all_time_low_usd: Math.min(...(lows.length ? lows : allPrices)),
+      latest_volume: latest.volume,
+      latest_timestamp: latest.time,
+      previous_point_usd: previous ? previous.close : null
+    },
+    source: "Yahoo Finance public chart data",
+    updated_at: new Date().toISOString()
+  };
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -143,6 +196,24 @@ export default {
         return cacheable;
       }
       return response;
+    }
+    if (url.pathname === "/api/history") {
+      if (request.method !== "GET") return json({ error: "Method not allowed" }, 405);
+      const range = HISTORY_RANGES.has(url.searchParams.get("range")) ? url.searchParams.get("range") : "1y";
+      const cache = caches.default;
+      const cacheKey = new Request(new URL("/api/history?range=" + range, url.origin).toString(), { method: "GET" });
+      const cached = await cache.match(cacheKey);
+      if (cached) return cached;
+      try {
+        const data = await historyData(range);
+        const response = json(data);
+        const cacheable = new Response(response.body, response);
+        cacheable.headers.set("cache-control", "public, max-age=300, s-maxage=900");
+        ctx.waitUntil(cache.put(cacheKey, cacheable.clone()));
+        return cacheable;
+      } catch (error) {
+        return json({ error: "Historical data is temporarily unavailable from Yahoo Finance.", detail: String(error?.message || error), source: "Yahoo Finance public chart data", updated_at: new Date().toISOString() }, 502);
+      }
     }
     return env.ASSETS.fetch(request);
   },
