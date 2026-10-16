@@ -150,6 +150,37 @@ async function historyData(range) {
   })).filter(point => Number.isFinite(point.time) && Number.isFinite(point.close) && point.close > 0)
     .sort((a, b) => a.time - b.time);
   const points = allPoints.filter(point => point.date >= startDay && point.date <= endDay);
+
+  // Add today's live exchange price as an explicitly current-day point.
+  // It is an indicative live price, not a completed daily close.
+  const today = new Date().toISOString().slice(0, 10);
+  let hasLiveToday = false;
+  try {
+    const liveResponse = await marketData();
+    const live = await liveResponse.json();
+    const livePrice = Number(live.price_usd);
+    if (liveResponse.ok && Number.isFinite(livePrice) && livePrice > 0 && today >= startDay && today <= endDay) {
+      const livePoint = {
+        date: today,
+        time: Math.floor(Date.parse(today + "T00:00:00Z") / 1000),
+        open: null,
+        high: null,
+        low: null,
+        close: livePrice,
+        volume: null,
+        market_cap: null,
+        is_live: true
+      };
+      const todayIndex = points.findIndex(point => point.date === today);
+      if (todayIndex >= 0) points[todayIndex] = livePoint;
+      else points.push(livePoint);
+      points.sort((a, b) => a.time - b.time);
+      hasLiveToday = true;
+    }
+  } catch {
+    // Keep the recorded history usable if live exchanges are temporarily unavailable.
+  }
+
   if (points.length < 2) throw new Error("The recorded daily price list contains too few points for this range");
   const latest = points[points.length - 1];
   const previous = points.length > 1 ? points[points.length - 2] : null;
@@ -177,7 +208,7 @@ async function historyData(range) {
       latest_timestamp: latest.time,
       previous_point_usd: previous ? previous.close : null
     },
-    source: "Recorded daily PI price history",
+    source: hasLiveToday ? "Recorded daily PI price history + live exchange price (current day)" : "Recorded daily PI price history" + (new Date().toISOString().slice(0, 10) === latest.date ? "" : " (latest recorded day: " + latest.date + ")"),
     updated_at: new Date().toISOString()
   };
 }
@@ -204,14 +235,14 @@ export default {
       if (request.method !== "GET") return json({ error: "Method not allowed" }, 405);
       const range = HISTORY_RANGES.has(url.searchParams.get("range")) ? url.searchParams.get("range") : "1y";
       const cache = caches.default;
-      const cacheKey = new Request(new URL("/api/history?range=" + range, url.origin).toString(), { method: "GET" });
+      const cacheKey = new Request(new URL("/api/history?range=" + range + "&live=1", url.origin).toString(), { method: "GET" });
       const cached = await cache.match(cacheKey);
       if (cached) return cached;
       try {
         const data = await historyData(range);
         const response = json(data);
         const cacheable = new Response(response.body, response);
-        cacheable.headers.set("cache-control", "public, max-age=300, s-maxage=900");
+        cacheable.headers.set("cache-control", "public, max-age=30, s-maxage=45");
         ctx.waitUntil(cache.put(cacheKey, cacheable.clone()));
         return cacheable;
       } catch (error) {
