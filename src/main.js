@@ -277,7 +277,7 @@ function renderHistory(data) {
   setText(elements.allTimeLowDate, minPoint ? "Lowest daily price · " + historyDate(minPoint.time) : "No historical point");
   setText(elements.historySource, data.source || "Recorded daily PI price history");
   setText(elements.historyUpdated, "Fetched " + timestamp(data.updated_at));
-  setText(elements.historyStatus, points.length + " price points · " + data.interval);
+  setText(elements.historyStatus, points.length + " price points · " + data.interval + (points.some(point => point.is_live) ? " · live price today" : ""));
 }
 async function refreshHistory(range = selectedRange) {
   if (historyBusy) return;
