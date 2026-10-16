@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#090710" />
+    <meta name="description" content="Pi Network market dashboard — current PI price, market capitalization and 24-hour trading volume." />
+    <title>Pi Trading — BulbyBots</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="app">
+      <bulbybot-header active="trading" brand="CRUMBS" section-title="Pi Trading" section-subtitle="Market data"></bulbybot-header>
+      <main class="site-shell">
+        <div class="aurora aurora-one" aria-hidden="true"></div>
+        <div class="aurora aurora-two" aria-hidden="true"></div>
+        <div class="starfield" aria-hidden="true"></div>
+        <section class="hero">
+          <div class="hero-content">
+            <div class="eyebrow"><span class="live-dot"></span> PI NETWORK · MARKET PULSE</div>
+            <h1>Pi, in <span class="gradient-text">motion.</span></h1>
+            <p class="hero-copy">A clear snapshot of PI market price, capitalization and trading activity. Start with the essentials; build out the deeper market picture over time.</p>
+            <div class="hero-meta"><span class="status-dot"></span><span id="feedStatus" role="status">Connecting to market data…</span><span class="meta-divider">·</span><span id="updatedAt">Waiting for first update</span></div>
+          </div>
+          <div class="hero-orbit" aria-hidden="true"><div class="orbit-ring ring-one"></div><div class="orbit-ring ring-two"></div><div class="orbit-core">π</div><span class="orbit-spark spark-one"></span><span class="orbit-spark spark-two"></span></div>
+        </section>
+        <section class="market-grid" aria-label="Pi market statistics">
+          <article class="market-card price-card">
+            <div class="metric-top"><span class="eyebrow small">PI / USD</span><span class="metric-symbol">π</span></div>
+            <div id="priceValue" class="metric-value">—</div>
+            <div class="metric-bottom"><span id="changePill" class="change-pill">24H CHANGE —</span><span class="metric-caption">Market price</span></div>
+          </article>
+          <article class="market-card">
+            <div class="metric-top"><span class="eyebrow small">MARKET CAPITALIZATION</span><span class="metric-icon">MC</span></div>
+            <div id="marketCapValue" class="metric-value">—</div>
+            <div class="metric-bottom"><span class="metric-caption">Price × circulating supply</span></div>
+          </article>
+          <article class="market-card">
+            <div class="metric-top"><span class="eyebrow small">24H TRADING VOLUME</span><span class="metric-icon">24H</span></div>
+            <div id="volumeValue" class="metric-value">—</div>
+            <div class="metric-bottom"><span class="metric-caption">Rolling 24-hour spot volume</span></div>
+          </article>
+        </section>
+        <section class="details-grid">
+          <article class="panel">
+            <div class="panel-heading"><div><div class="eyebrow small">MARKET DETAILS</div><h2>At a glance</h2></div><span class="panel-mark">01</span></div>
+            <dl class="detail-list">
+              <div><dt>Circulating supply</dt><dd id="supplyValue">—</dd></div>
+              <div><dt>24-hour range</dt><dd id="rangeValue">—</dd></div>
+              <div><dt>Market data source</dt><dd id="sourceValue">—</dd></div>
+              <div><dt>Data updated</dt><dd id="detailUpdated">—</dd></div>
+            </dl>
+            <p class="fine-print">Market prices and volumes can differ between exchanges. Figures are indicative snapshots, not a promise of the price available for a trade.</p>
+          </article>
+          <article class="panel why-panel">
+            <div class="eyebrow small">HOW TO READ IT</div>
+            <h2>Three numbers. One market picture.</h2>
+            <p><strong>Price</strong> shows what PI is trading for in USD across the selected market source.</p>
+            <p><strong>Market cap</strong> estimates the value of circulating PI at the reference price. It is not the total cash invested in Pi.</p>
+            <p><strong>24-hour volume</strong> measures the value of trades over a rolling day. Higher volume can mean more activity, but does not indicate direction by itself.</p>
+          </article>
+        </section>
+        <section class="next-panel">
+          <div class="next-icon">↗</div><div><div class="eyebrow small">STARTING POINT</div><h2>More market tools can come next.</h2><p>Next sensible additions: price history, exchange-by-exchange volume, market depth, and a Pi-to-USD/PHP converter.</p></div>
+        </section>
+        <footer class="page-note">Independent community market overview · Data provided by public exchange APIs · Not financial advice</footer>
+      </main>
+      <bulbybot-footer></bulbybot-footer>
+    </div>
+    <script defer src="https://bulbybot-header.bulbybot.workers.dev/bulbybot-header.js?v=20261016-trading-v1"></script>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
