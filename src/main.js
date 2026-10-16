@@ -16,6 +16,25 @@ const elements = {
   detailUpdated: document.getElementById("detailUpdated"),
   exchangeGrid: document.getElementById("exchangeGrid"),
   priceSpread: document.getElementById("priceSpread"),
+  historyStatus: document.getElementById("historyStatus"),
+  priceChart: document.getElementById("priceChart"),
+  historyChange: document.getElementById("historyChange"),
+  periodHigh: document.getElementById("periodHigh"),
+  periodLow: document.getElementById("periodLow"),
+  historyLatest: document.getElementById("historyLatest"),
+  chartStart: document.getElementById("chartStart"),
+  chartEnd: document.getElementById("chartEnd"),
+  previousClose: document.getElementById("previousClose"),
+  latestOpen: document.getElementById("latestOpen"),
+  high52: document.getElementById("high52"),
+  low52: document.getElementById("low52"),
+  allTimeHigh: document.getElementById("allTimeHigh"),
+  allTimeLow: document.getElementById("allTimeLow"),
+  allTimeHighDate: document.getElementById("allTimeHighDate"),
+  allTimeLowDate: document.getElementById("allTimeLowDate"),
+  volumeMarketCap: document.getElementById("volumeMarketCap"),
+  historySource: document.getElementById("historySource"),
+  historyUpdated: document.getElementById("historyUpdated")
 };
 
 const hasNumber = value => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
@@ -123,7 +142,111 @@ async function refresh() {
     if (!elements.price || elements.price.textContent === "—") setText(elements.updatedAt, "No current data available");
   } finally { running = false; }
 }
+
+const HISTORY_API = "/api/history";
+let selectedRange = "1y";
+let historyBusy = false;
+const historyUsd = value => hasNumber(value) ? usd(value, Number(value) < 0.01 ? 6 : Number(value) < 1 ? 4 : 2) : "—";
+const historyDate = value => {
+  if (!Number.isFinite(Number(value))) return "—";
+  return new Date(Number(value) * 1000).toLocaleDateString("en-GB", { timeZone: "UTC", day: "2-digit", month: "short", year: "numeric" });
+};
+function svgNode(name, attrs = {}) {
+  const node = document.createElementNS("http://www.w3.org/2000/svg", name);
+  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, String(value));
+  return node;
+}
+function drawHistoryChart(points) {
+  const svg = elements.priceChart;
+  if (!svg) return;
+  svg.replaceChildren();
+  const values = points.map(point => Number(point.close)).filter(Number.isFinite);
+  if (values.length < 2) {
+    const label = svgNode("text", { x: 500, y: 150, "text-anchor": "middle" });
+    label.textContent = "Not enough public history to draw a chart.";
+    svg.append(label);
+    return;
+  }
+  const width = 1000, height = 300, left = 12, right = 12, top = 16, bottom = 22;
+  const min = Math.min(...values), max = Math.max(...values);
+  const span = max - min || Math.max(Math.abs(max) * 0.02, 0.000001);
+  const x = i => left + (i / (values.length - 1)) * (width - left - right);
+  const y = value => top + ((max - value) / span) * (height - top - bottom);
+  for (let i = 0; i < 4; i++) {
+    const yy = top + i * (height - top - bottom) / 3;
+    svg.append(svgNode("line", { x1: left, x2: width - right, y1: yy, y2: yy, class: "chart-gridline" }));
+  }
+  const path = values.map((value, i) => (i ? "L" : "M") + x(i).toFixed(2) + " " + y(value).toFixed(2)).join(" ");
+  const area = path + " L " + x(values.length - 1) + " " + (height - bottom) + " L " + x(0) + " " + (height - bottom) + " Z";
+  svg.append(svgNode("path", { d: area, class: "chart-area" }));
+  svg.append(svgNode("path", { d: path, class: "chart-line" }));
+  const last = svgNode("circle", { cx: x(values.length - 1), cy: y(values[values.length - 1]), r: 4.5, class: "chart-last-point" });
+  svg.append(last);
+  const maxLabel = svgNode("text", { x: width - right, y: 12, "text-anchor": "end", class: "chart-value-label" });
+  maxLabel.textContent = historyUsd(max);
+  const minLabel = svgNode("text", { x: width - right, y: height - bottom - 4, "text-anchor": "end", class: "chart-value-label" });
+  minLabel.textContent = historyUsd(min);
+  svg.append(maxLabel, minLabel);
+}
+function renderHistory(data) {
+  const points = Array.isArray(data.points) ? data.points : [];
+  const stats = data.statistics || {};
+  drawHistoryChart(points);
+  const first = points.find(point => hasNumber(point.close));
+  const last = [...points].reverse().find(point => hasNumber(point.close));
+  const change = first && last && Number(first.close) !== 0 ? (Number(last.close) / Number(first.close) - 1) * 100 : null;
+  setText(elements.historyChange, hasNumber(change) ? (change > 0 ? "+" : "") + change.toFixed(2) + "%" : "—");
+  if (elements.historyChange) elements.historyChange.className = "stat-value " + (hasNumber(change) ? (change >= 0 ? "positive" : "negative") : "");
+  setText(elements.periodHigh, historyUsd(stats.period_high_usd));
+  setText(elements.periodLow, historyUsd(stats.period_low_usd));
+  setText(elements.historyLatest, historyUsd(last?.close ?? stats.current_price_usd));
+  setText(elements.chartStart, first ? historyDate(first.time) : "—");
+  setText(elements.chartEnd, last ? historyDate(last.time) : "—");
+  setText(elements.previousClose, historyUsd(stats.previous_close_usd));
+  setText(elements.latestOpen, historyUsd(stats.open_usd));
+  setText(elements.high52, historyUsd(stats.high_52w_usd));
+  setText(elements.low52, historyUsd(stats.low_52w_usd));
+  setText(elements.allTimeHigh, historyUsd(stats.all_time_high_usd));
+  setText(elements.allTimeLow, historyUsd(stats.all_time_low_usd));
+  const maxPoint = points.filter(p => hasNumber(p.high)).reduce((best, p) => !best || Number(p.high) > Number(best.high) ? p : best, null);
+  const minPoint = points.filter(p => hasNumber(p.low)).reduce((best, p) => !best || Number(p.low) < Number(best.low) ? p : best, null);
+  setText(elements.allTimeHighDate, maxPoint ? "Highest high in selected history · " + historyDate(maxPoint.time) : "Based on returned chart history");
+  setText(elements.allTimeLowDate, minPoint ? "Lowest low in selected history · " + historyDate(minPoint.time) : "Based on returned chart history");
+  const ratio = hasNumber(data.market_cap_usd) && Number(data.market_cap_usd) > 0 && hasNumber(data.volume_24h_usd) ? Number(data.volume_24h_usd) / Number(data.market_cap_usd) * 100 : null;
+  setText(elements.volumeMarketCap, hasNumber(ratio) ? ratio.toFixed(3) + "%" : "—");
+  setText(elements.historySource, data.source || "Yahoo Finance public chart data");
+  setText(elements.historyUpdated, "Fetched " + timestamp(data.updated_at));
+  setText(elements.historyStatus, points.length + " price points · " + data.interval + " candles");
+}
+async function refreshHistory(range = selectedRange) {
+  if (historyBusy) return;
+  historyBusy = true;
+  selectedRange = range;
+  setText(elements.historyStatus, "Loading " + range + " history…");
+  document.querySelectorAll("[data-history-range]").forEach(button => {
+    const active = button.dataset.historyRange === range;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+  try {
+    const response = await fetch(HISTORY_API + "?range=" + encodeURIComponent(range), { headers: { Accept: "application/json" }, cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.error || "Historical data unavailable");
+    renderHistory(data);
+  } catch (error) {
+    setText(elements.historyStatus, "Historical data unavailable");
+    if (elements.priceChart) {
+      elements.priceChart.replaceChildren();
+      const message = svgNode("text", { x: 500, y: 150, "text-anchor": "middle" });
+      message.textContent = "Yahoo Finance history is temporarily unavailable.";
+      elements.priceChart.append(message);
+    }
+  } finally { historyBusy = false; }
+}
+document.querySelectorAll("[data-history-range]").forEach(button => button.addEventListener("click", () => void refreshHistory(button.dataset.historyRange)));
+
 void refresh();
+void refreshHistory();
 window.setInterval(refresh, REFRESH_MS);
 try {
   if (localStorage.getItem("crumbs-theme") === "pi") document.documentElement.dataset.theme = "violet";
