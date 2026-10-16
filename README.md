@@ -29,8 +29,8 @@ Price-history chart, per-exchange volume table, USD/PHP converter, order-book de
 
 ## Public historical market data
 
-- `/api/history?range=1y` uses CoinGecko's public market-chart endpoint for the `pi-network` asset. The frontend supports 30, 90, 180 and 365-day ranges.
+- `/api/history?range=1y` uses CoinPaprika's public historical-ticker endpoint for the `pi2-pi-network` asset. The frontend supports 30, 90, 180 and 365-day ranges.
 - History is cached at the Worker edge for 15 minutes to reduce public API traffic.
-- The endpoint provides daily/aggregated price and volume points, not full intraday OHLC candles. The UI labels highs and lows as observed daily prices, not all-time exchange candle extremes.
+- The endpoint provides daily price, reported 24-hour volume and market-cap points, not full OHLC candles. The UI labels highs and lows as observed daily prices, not all-time exchange candle extremes.
 - If the public endpoint rate-limits or becomes unavailable, the page shows the provider error instead of inventing chart values.
-- The live Gate.io/MEXC exchange snapshot remains separate from CoinGecko's aggregated historical series.
+- The live Gate.io/MEXC exchange snapshot remains separate from CoinPaprika's aggregated historical series.
