@@ -1,3 +1,5 @@
+import dailyPriceHistory from "./pi_daily_prices.json";
+
 const MARKET_CACHE_SECONDS = 45;
 
 function json(data, status = 200) {
@@ -134,30 +136,21 @@ async function historyData(range) {
   const days = HISTORY_RANGES.get(range);
   const endDate = new Date();
   const startDate = new Date(endDate.getTime() - days * 86400000);
-  const dateOnly = date => date.toISOString().slice(0, 10);
-  const params = new URLSearchParams({
-    start: dateOnly(startDate),
-    end: dateOnly(endDate),
-    interval: "1d",
-    quote: "usd",
-    limit: "500"
-  });
-  // CoinPaprika's free historical-ticker endpoint supports daily points for up to one year.
-  // The PI asset ID is pi2-pi-network; CoinGecko's public endpoint returned HTTP 403 from this Worker.
-  const url = "https://api.coinpaprika.com/v1/tickers/pi2-pi-network/historical?" + params.toString();
-  const body = await fetchJson(url, 12000);
-  if (!Array.isArray(body)) throw new Error("CoinPaprika returned an unexpected historical-data response");
-  const points = body.map(row => ({
-    time: Math.floor(Date.parse(row.timestamp) / 1000),
+  const startDay = startDate.toISOString().slice(0, 10);
+  const endDay = endDate.toISOString().slice(0, 10);
+  const allPoints = dailyPriceHistory.map(row => ({
+    date: row.date,
+    time: Math.floor(Date.parse(row.date + "T00:00:00Z") / 1000),
     open: null,
     high: null,
     low: null,
-    close: Number(row.price),
-    volume: Number.isFinite(Number(row.volume_24h)) ? Number(row.volume_24h) : null,
-    market_cap: Number.isFinite(Number(row.market_cap)) ? Number(row.market_cap) : null
+    close: Number(row.price_usd),
+    volume: null,
+    market_cap: null
   })).filter(point => Number.isFinite(point.time) && Number.isFinite(point.close) && point.close > 0)
     .sort((a, b) => a.time - b.time);
-  if (points.length < 2) throw new Error("CoinPaprika returned too few historical price points");
+  const points = allPoints.filter(point => point.date >= startDay && point.date <= endDay);
+  if (points.length < 2) throw new Error("The recorded daily price list contains too few points for this range");
   const latest = points[points.length - 1];
   const previous = points.length > 1 ? points[points.length - 2] : null;
   const pointBeforeDays = daysAgo => points.find(point => point.time >= latest.time - daysAgo * 86400) || points[0];
@@ -175,16 +168,16 @@ async function historyData(range) {
       previous_close_usd: previous ? previous.close : null,
       change_7d_pct: sevenDayPoint.close ? (latest.close / sevenDayPoint.close - 1) * 100 : null,
       change_30d_pct: thirtyDayPoint.close ? (latest.close / thirtyDayPoint.close - 1) * 100 : null,
-      latest_volume_usd: latest.volume,
+      latest_volume_usd: null,
       period_high_usd: Math.max(...closes),
       period_low_usd: Math.min(...closes),
       all_time_high_usd: null,
       all_time_low_usd: null,
-      latest_volume: latest.volume,
+      latest_volume: null,
       latest_timestamp: latest.time,
       previous_point_usd: previous ? previous.close : null
     },
-    source: "CoinPaprika public historical ticker data",
+    source: "Recorded daily PI price history",
     updated_at: new Date().toISOString()
   };
 }
@@ -222,7 +215,7 @@ export default {
         ctx.waitUntil(cache.put(cacheKey, cacheable.clone()));
         return cacheable;
       } catch (error) {
-        return json({ error: "Historical data is temporarily unavailable from CoinGecko.", detail: String(error?.message || error), source: "CoinGecko public market-chart data", updated_at: new Date().toISOString() }, 502);
+        return json({ error: "Recorded historical PI prices are temporarily unavailable.", detail: String(error?.message || error), source: "Recorded daily PI price history", updated_at: new Date().toISOString() }, 502);
       }
     }
     return env.ASSETS.fetch(request);
