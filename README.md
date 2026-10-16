@@ -25,3 +25,11 @@ Connect this repository to Cloudflare Pages with root directory `/`, build comma
 ## Later expansions
 
 Price-history chart, per-exchange volume table, USD/PHP converter, order-book depth, market movers, and a news/milestone timeline can be added separately.
+
+## Public historical market data expansion
+
+- `/api/history?range=1y` retrieves the publicly accessible Yahoo Finance chart endpoint for `PI35697-USD`; supported ranges are `1mo`, `6mo`, `1y`, `5y`, and `max`.
+- Historical chart data is cached briefly at the Worker edge and displayed with range controls.
+- The UI shows the returned history's period high/low, previous close, latest open, 52-week figures when supplied by Yahoo, and all-time extremes only within the history returned by Yahoo for the selected range.
+- This is public Yahoo Finance chart data, not a private exchange API. If Yahoo changes or restricts its public endpoint, the history panel reports unavailability rather than inventing values.
+- Exchange spot prices/volumes remain a separate tracked-exchange dataset. They are not presented as the full global market.
