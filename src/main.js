@@ -14,6 +14,8 @@ const elements = {
   range: document.getElementById("rangeValue"),
   source: document.getElementById("sourceValue"),
   detailUpdated: document.getElementById("detailUpdated"),
+  exchangeGrid: document.getElementById("exchangeGrid"),
+  priceSpread: document.getElementById("priceSpread"),
 };
 
 const hasNumber = value => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
@@ -54,6 +56,51 @@ function render(data) {
   setText(elements.source, data.source_label || "Public exchange APIs");
   setText(elements.updatedAt, "Updated " + timestamp(data.updated_at));
   setText(elements.detailUpdated, timestamp(data.updated_at));
+  setText(elements.priceSpread, hasNumber(data.price_spread_pct) ? Number(data.price_spread_pct).toFixed(3) + "% price difference" : "—");
+  if (elements.exchangeGrid) {
+    const exchanges = Array.isArray(data.exchanges) ? data.exchanges : [];
+    elements.exchangeGrid.replaceChildren();
+    if (!exchanges.length) {
+      const empty = document.createElement("p");
+      empty.className = "exchange-empty";
+      empty.textContent = "Exchange data is temporarily unavailable.";
+      elements.exchangeGrid.append(empty);
+    } else {
+      for (const exchange of exchanges) {
+        const card = document.createElement("article");
+        card.className = "exchange-card";
+        const heading = document.createElement("div");
+        heading.className = "exchange-heading";
+        const name = document.createElement("h3");
+        name.textContent = exchange.exchange || "Exchange";
+        const pair = document.createElement("span");
+        pair.className = "exchange-pair";
+        pair.textContent = exchange.pair || "PI/USDT";
+        heading.append(name, pair);
+        const price = document.createElement("div");
+        price.className = "exchange-price";
+        price.textContent = formatPrice(exchange.price_usd);
+        const details = document.createElement("dl");
+        details.className = "exchange-details";
+        const fields = [
+          ["24h change", hasNumber(exchange.change_24h_pct) ? (Number(exchange.change_24h_pct) > 0 ? "+" : "") + Number(exchange.change_24h_pct).toFixed(2) + "%" : "—"],
+          ["24h volume", compactUsd(exchange.volume_24h_usd)],
+          ["24h low / high", hasNumber(exchange.low_24h_usd) && hasNumber(exchange.high_24h_usd) ? formatPrice(exchange.low_24h_usd) + " / " + formatPrice(exchange.high_24h_usd) : "—"]
+        ];
+        for (const [label, value] of fields) {
+          const row = document.createElement("div");
+          const dt = document.createElement("dt");
+          dt.textContent = label;
+          const dd = document.createElement("dd");
+          dd.textContent = value;
+          row.append(dt, dd);
+          details.append(row);
+        }
+        card.append(heading, price, details);
+        elements.exchangeGrid.append(card);
+      }
+    }
+  }
   const pct = hasNumber(data.change_24h_pct) ? Number(data.change_24h_pct) : NaN;
   if (elements.change) {
     elements.change.classList.toggle("positive", Number.isFinite(pct) && pct >= 0);
