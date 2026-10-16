@@ -132,36 +132,59 @@ const HISTORY_RANGES = new Map([["1mo", 30], ["3mo", 90], ["6mo", 180], ["1y", 3
 async function historyData(range) {
   if (!HISTORY_RANGES.has(range)) range = "1y";
   const days = HISTORY_RANGES.get(range);
-  const url = "https://api.coingecko.com/api/v3/coins/pi-network/market_chart?vs_currency=usd&days=" + days;
+  const endDate = new Date();
+  const startDate = new Date(endDate.getTime() - days * 86400000);
+  const dateOnly = date => date.toISOString().slice(0, 10);
+  const params = new URLSearchParams({
+    start: dateOnly(startDate),
+    end: dateOnly(endDate),
+    interval: "1d",
+    quote: "usd",
+    limit: "500"
+  });
+  // CoinPaprika's free historical-ticker endpoint supports daily points for up to one year.
+  // The PI asset ID is pi2-pi-network; CoinGecko's public endpoint returned HTTP 403 from this Worker.
+  const url = "https://api.coinpaprika.com/v1/tickers/pi2-pi-network/historical?" + params.toString();
   const body = await fetchJson(url, 12000);
-  const prices = Array.isArray(body.prices) ? body.prices : [];
-  const volumes = Array.isArray(body.total_volumes) ? body.total_volumes : [];
-  const points = prices.map(([time, close]) => ({
-    time: Math.floor(Number(time) / 1000), open: null, high: null, low: null,
-    close: Number(close), volume: null
-  })).filter(point => Number.isFinite(point.time) && Number.isFinite(point.close) && point.close > 0);
-  if (points.length < 2) throw new Error("CoinGecko returned too few historical price points");
-  const volumeByTime = new Map(volumes.map(([time, volume]) => [Math.floor(Number(time) / 1000), Number(volume)]));
-  for (const point of points) point.volume = Number.isFinite(volumeByTime.get(point.time)) ? volumeByTime.get(point.time) : null;
-  const closes = points.map(point => point.close);
+  if (!Array.isArray(body)) throw new Error("CoinPaprika returned an unexpected historical-data response");
+  const points = body.map(row => ({
+    time: Math.floor(Date.parse(row.timestamp) / 1000),
+    open: null,
+    high: null,
+    low: null,
+    close: Number(row.price),
+    volume: Number.isFinite(Number(row.volume_24h)) ? Number(row.volume_24h) : null,
+    market_cap: Number.isFinite(Number(row.market_cap)) ? Number(row.market_cap) : null
+  })).filter(point => Number.isFinite(point.time) && Number.isFinite(point.close) && point.close > 0)
+    .sort((a, b) => a.time - b.time);
+  if (points.length < 2) throw new Error("CoinPaprika returned too few historical price points");
   const latest = points[points.length - 1];
   const previous = points.length > 1 ? points[points.length - 2] : null;
-  const sevenDayPoint = points.find(point => point.time >= latest.time - 7 * 86400) || points[0];
+  const pointBeforeDays = daysAgo => points.find(point => point.time >= latest.time - daysAgo * 86400) || points[0];
+  const sevenDayPoint = pointBeforeDays(7);
+  const thirtyDayPoint = pointBeforeDays(30);
+  const closes = points.map(point => point.close);
   return {
-    symbol: "PI", currency: "USD", range, interval: "daily/aggregated", points,
+    symbol: "PI",
+    currency: "USD",
+    range,
+    interval: "daily",
+    points,
     statistics: {
       current_price_usd: latest.close,
       previous_close_usd: previous ? previous.close : null,
       change_7d_pct: sevenDayPoint.close ? (latest.close / sevenDayPoint.close - 1) * 100 : null,
-      change_30d_pct: points.find(point => point.time >= latest.time - 30 * 86400)?.close
-        ? (latest.close / points.find(point => point.time >= latest.time - 30 * 86400).close - 1) * 100 : null,
+      change_30d_pct: thirtyDayPoint.close ? (latest.close / thirtyDayPoint.close - 1) * 100 : null,
       latest_volume_usd: latest.volume,
-      period_high_usd: Math.max(...closes), period_low_usd: Math.min(...closes),
-      all_time_high_usd: null, all_time_low_usd: null,
-      latest_volume: latest.volume, latest_timestamp: latest.time,
+      period_high_usd: Math.max(...closes),
+      period_low_usd: Math.min(...closes),
+      all_time_high_usd: null,
+      all_time_low_usd: null,
+      latest_volume: latest.volume,
+      latest_timestamp: latest.time,
       previous_point_usd: previous ? previous.close : null
     },
-    source: "CoinGecko public market-chart data",
+    source: "CoinPaprika public historical ticker data",
     updated_at: new Date().toISOString()
   };
 }
