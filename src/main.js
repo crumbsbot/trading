@@ -75,6 +75,8 @@ function render(data) {
   setText(elements.source, data.source_label || "Public exchange APIs");
   setText(elements.updatedAt, "Updated " + timestamp(data.updated_at));
   setText(elements.detailUpdated, timestamp(data.updated_at));
+  const volumeCapRatio = hasNumber(data.market_cap_usd) && Number(data.market_cap_usd) > 0 && hasNumber(data.volume_24h_usd) ? Number(data.volume_24h_usd) / Number(data.market_cap_usd) * 100 : null;
+  setText(elements.volumeMarketCap, hasNumber(volumeCapRatio) ? volumeCapRatio.toFixed(3) + "%" : "—");
   setText(elements.priceSpread, hasNumber(data.price_spread_pct) ? Number(data.price_spread_pct).toFixed(3) + "% price difference" : "—");
   if (elements.exchangeGrid) {
     const exchanges = Array.isArray(data.exchanges) ? data.exchanges : [];
@@ -208,12 +210,10 @@ function renderHistory(data) {
   setText(elements.low52, historyUsd(stats.low_52w_usd));
   setText(elements.allTimeHigh, historyUsd(stats.all_time_high_usd));
   setText(elements.allTimeLow, historyUsd(stats.all_time_low_usd));
-  const maxPoint = points.filter(p => hasNumber(p.high)).reduce((best, p) => !best || Number(p.high) > Number(best.high) ? p : best, null);
-  const minPoint = points.filter(p => hasNumber(p.low)).reduce((best, p) => !best || Number(p.low) < Number(best.low) ? p : best, null);
-  setText(elements.allTimeHighDate, maxPoint ? "Highest high in selected history · " + historyDate(maxPoint.time) : "Based on returned chart history");
-  setText(elements.allTimeLowDate, minPoint ? "Lowest low in selected history · " + historyDate(minPoint.time) : "Based on returned chart history");
-  const ratio = hasNumber(data.market_cap_usd) && Number(data.market_cap_usd) > 0 && hasNumber(data.volume_24h_usd) ? Number(data.volume_24h_usd) / Number(data.market_cap_usd) * 100 : null;
-  setText(elements.volumeMarketCap, hasNumber(ratio) ? ratio.toFixed(3) + "%" : "—");
+  const maxPoint = selectedRange === "max" ? points.filter(p => hasNumber(p.high)).reduce((best, p) => !best || Number(p.high) > Number(best.high) ? p : best, null) : null;
+  const minPoint = selectedRange === "max" ? points.filter(p => hasNumber(p.low)).reduce((best, p) => !best || Number(p.low) < Number(best.low) ? p : best, null) : null;
+  setText(elements.allTimeHighDate, selectedRange === "max" && maxPoint ? "Highest high in available history · " + historyDate(maxPoint.time) : "Select MAX to inspect all available history");
+  setText(elements.allTimeLowDate, selectedRange === "max" && minPoint ? "Lowest low in available history · " + historyDate(minPoint.time) : "Select MAX to inspect all available history");
   setText(elements.historySource, data.source || "Yahoo Finance public chart data");
   setText(elements.historyUpdated, "Fetched " + timestamp(data.updated_at));
   setText(elements.historyStatus, points.length + " price points · " + data.interval + " candles");
