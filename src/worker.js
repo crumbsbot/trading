@@ -168,8 +168,8 @@ async function historyData(range) {
       low_52w_usd: Number.isFinite(meta.fiftyTwoWeekLow) ? meta.fiftyTwoWeekLow : null,
       period_high_usd: highs.length ? Math.max(...highs) : Math.max(...allPrices),
       period_low_usd: lows.length ? Math.min(...lows) : Math.min(...allPrices),
-      all_time_high_usd: Math.max(...(highs.length ? highs : allPrices)),
-      all_time_low_usd: Math.min(...(lows.length ? lows : allPrices)),
+      all_time_high_usd: range === "max" ? Math.max(...(highs.length ? highs : allPrices)) : null,
+      all_time_low_usd: range === "max" ? Math.min(...(lows.length ? lows : allPrices)) : null,
       latest_volume: latest.volume,
       latest_timestamp: latest.time,
       previous_point_usd: previous ? previous.close : null
