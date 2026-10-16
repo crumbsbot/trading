@@ -153,7 +153,9 @@ async function historyData(range) {
       current_price_usd: latest.close,
       previous_close_usd: previous ? previous.close : null,
       change_7d_pct: sevenDayPoint.close ? (latest.close / sevenDayPoint.close - 1) * 100 : null,
-      high_52w_usd: Math.max(...closes), low_52w_usd: Math.min(...closes),
+      change_30d_pct: points.find(point => point.time >= latest.time - 30 * 86400)?.close
+        ? (latest.close / points.find(point => point.time >= latest.time - 30 * 86400).close - 1) * 100 : null,
+      latest_volume_usd: latest.volume,
       period_high_usd: Math.max(...closes), period_low_usd: Math.min(...closes),
       all_time_high_usd: null, all_time_low_usd: null,
       latest_volume: latest.volume, latest_timestamp: latest.time,
