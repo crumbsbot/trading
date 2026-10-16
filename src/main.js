@@ -26,8 +26,8 @@ const elements = {
   chartEnd: document.getElementById("chartEnd"),
   previousClose: document.getElementById("previousClose"),
   change7d: document.getElementById("change7d"),
-  high52: document.getElementById("high52"),
-  low52: document.getElementById("low52"),
+  change30d: document.getElementById("change30d"),
+  historyVolume: document.getElementById("historyVolume"),
   allTimeHigh: document.getElementById("allTimeHigh"),
   allTimeLow: document.getElementById("allTimeLow"),
   allTimeHighDate: document.getElementById("allTimeHighDate"),
@@ -206,8 +206,8 @@ function renderHistory(data) {
   setText(elements.chartEnd, last ? historyDate(last.time) : "—");
   setText(elements.previousClose, historyUsd(stats.previous_close_usd));
   setText(elements.change7d, hasNumber(stats.change_7d_pct) ? (stats.change_7d_pct > 0 ? "+" : "") + Number(stats.change_7d_pct).toFixed(2) + "%" : "—");
-  setText(elements.high52, historyUsd(stats.high_52w_usd));
-  setText(elements.low52, historyUsd(stats.low_52w_usd));
+  setText(elements.change30d, hasNumber(stats.change_30d_pct) ? (stats.change_30d_pct > 0 ? "+" : "") + Number(stats.change_30d_pct).toFixed(2) + "%" : "—");
+  setText(elements.historyVolume, compactUsd(stats.latest_volume_usd));
   setText(elements.allTimeHigh, historyUsd(stats.period_high_usd));
   setText(elements.allTimeLow, historyUsd(stats.period_low_usd));
   const maxPoint = points.reduce((best, p) => !best || Number(p.close) > Number(best.close) ? p : best, null);
