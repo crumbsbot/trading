@@ -25,7 +25,7 @@ const elements = {
   chartStart: document.getElementById("chartStart"),
   chartEnd: document.getElementById("chartEnd"),
   previousClose: document.getElementById("previousClose"),
-  latestOpen: document.getElementById("latestOpen"),
+  change7d: document.getElementById("change7d"),
   high52: document.getElementById("high52"),
   low52: document.getElementById("low52"),
   allTimeHigh: document.getElementById("allTimeHigh"),
@@ -205,18 +205,18 @@ function renderHistory(data) {
   setText(elements.chartStart, first ? historyDate(first.time) : "—");
   setText(elements.chartEnd, last ? historyDate(last.time) : "—");
   setText(elements.previousClose, historyUsd(stats.previous_close_usd));
-  setText(elements.latestOpen, historyUsd(stats.open_usd));
+  setText(elements.change7d, hasNumber(stats.change_7d_pct) ? (stats.change_7d_pct > 0 ? "+" : "") + Number(stats.change_7d_pct).toFixed(2) + "%" : "—");
   setText(elements.high52, historyUsd(stats.high_52w_usd));
   setText(elements.low52, historyUsd(stats.low_52w_usd));
-  setText(elements.allTimeHigh, historyUsd(stats.all_time_high_usd));
-  setText(elements.allTimeLow, historyUsd(stats.all_time_low_usd));
-  const maxPoint = selectedRange === "max" ? points.filter(p => hasNumber(p.high)).reduce((best, p) => !best || Number(p.high) > Number(best.high) ? p : best, null) : null;
-  const minPoint = selectedRange === "max" ? points.filter(p => hasNumber(p.low)).reduce((best, p) => !best || Number(p.low) < Number(best.low) ? p : best, null) : null;
-  setText(elements.allTimeHighDate, selectedRange === "max" && maxPoint ? "Highest high in available history · " + historyDate(maxPoint.time) : "Select MAX to inspect all available history");
-  setText(elements.allTimeLowDate, selectedRange === "max" && minPoint ? "Lowest low in available history · " + historyDate(minPoint.time) : "Select MAX to inspect all available history");
-  setText(elements.historySource, data.source || "Yahoo Finance public chart data");
+  setText(elements.allTimeHigh, historyUsd(stats.period_high_usd));
+  setText(elements.allTimeLow, historyUsd(stats.period_low_usd));
+  const maxPoint = points.reduce((best, p) => !best || Number(p.close) > Number(best.close) ? p : best, null);
+  const minPoint = points.reduce((best, p) => !best || Number(p.close) < Number(best.close) ? p : best, null);
+  setText(elements.allTimeHighDate, maxPoint ? "Highest daily price · " + historyDate(maxPoint.time) : "No historical point");
+  setText(elements.allTimeLowDate, minPoint ? "Lowest daily price · " + historyDate(minPoint.time) : "No historical point");
+  setText(elements.historySource, data.source || "CoinGecko public market-chart data");
   setText(elements.historyUpdated, "Fetched " + timestamp(data.updated_at));
-  setText(elements.historyStatus, points.length + " price points · " + data.interval + " candles");
+  setText(elements.historyStatus, points.length + " price points · " + data.interval);
 }
 async function refreshHistory(range = selectedRange) {
   if (historyBusy) return;
@@ -228,17 +228,19 @@ async function refreshHistory(range = selectedRange) {
     button.classList.toggle("active", active);
     button.setAttribute("aria-pressed", active ? "true" : "false");
   });
+  let dataErrorMessage = "";
   try {
     const response = await fetch(HISTORY_API + "?range=" + encodeURIComponent(range), { headers: { Accept: "application/json" }, cache: "no-store" });
     const data = await response.json();
-    if (!response.ok) throw new Error(data?.error || "Historical data unavailable");
+    if (!response.ok) { dataErrorMessage = data?.detail || data?.error || ("HTTP " + response.status); throw new Error(dataErrorMessage); }
     renderHistory(data);
   } catch (error) {
-    setText(elements.historyStatus, "Historical data unavailable");
+    dataErrorMessage = dataErrorMessage || error?.message || "Historical data unavailable";
+    setText(elements.historyStatus, "Unavailable · " + dataErrorMessage);
     if (elements.priceChart) {
       elements.priceChart.replaceChildren();
       const message = svgNode("text", { x: 500, y: 150, "text-anchor": "middle" });
-      message.textContent = "Yahoo Finance history is temporarily unavailable.";
+      message.textContent = "Public market history is temporarily unavailable.";
       elements.priceChart.append(message);
     }
   } finally { historyBusy = false; }
