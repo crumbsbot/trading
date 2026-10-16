@@ -16,15 +16,21 @@ async function fromGate(): Promise<MarketRow> {
   if (!row) throw new Error("Gate.io returned no ticker");
   const price = Number(row.last);
   if (!Number.isFinite(price) || price <= 0) throw new Error("Gate.io price invalid");
-  const pct = Number(row.change_percentage);
-  return { price, change: Number.isFinite(pct) ? pct : null, high: Number(row.high_24h), low: Number(row.low_24h), volume: Number(row.quote_volume), source: "Gate.io PI/USDT" };
+  const pctRaw = Number(row.change_percentage);
+  const high = Number(row.high_24h);
+  const low = Number(row.low_24h);
+  const volume = Number(row.quote_volume);
+  return { price, change: Number.isFinite(pctRaw) ? pctRaw : null, high: Number.isFinite(high) ? high : null, low: Number.isFinite(low) ? low : null, volume: Number.isFinite(volume) ? volume : null, source: "Gate.io PI/USDT" };
 }
 async function fromMexc(): Promise<MarketRow> {
   const row = await fetchJson("https://api.mexc.com/api/v3/ticker/24hr?symbol=PIUSDT") as Record<string, unknown>;
   const price = Number(row.lastPrice);
   if (!Number.isFinite(price) || price <= 0) throw new Error("MEXC price invalid");
   const pct = Number(row.priceChangePercent);
-  return { price, change: Number.isFinite(pct) ? pct : null, high: Number(row.highPrice), low: Number(row.lowPrice), volume: Number(row.quoteVolume), source: "MEXC PI/USDT" };
+  const high = Number(row.highPrice);
+  const low = Number(row.lowPrice);
+  const volume = Number(row.quoteVolume);
+  return { price, change: Number.isFinite(pct) ? pct : null, high: Number.isFinite(high) ? high : null, low: Number.isFinite(low) ? low : null, volume: Number.isFinite(volume) ? volume : null, source: "MEXC PI/USDT" };
 }
 async function getSupply(): Promise<number | null> {
   try {
