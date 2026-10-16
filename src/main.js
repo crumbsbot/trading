@@ -162,17 +162,20 @@ function drawHistoryChart(points) {
   const svg = elements.priceChart;
   if (!svg) return;
   svg.replaceChildren();
-  const values = points.map(point => Number(point.close)).filter(Number.isFinite);
-  if (values.length < 2) {
+  const cleanPoints = points
+    .filter(point => hasNumber(point.close) && Number.isFinite(Number(point.time)))
+    .map(point => ({ ...point, close: Number(point.close), time: Number(point.time) }));
+  if (cleanPoints.length < 2) {
     const label = svgNode("text", { x: 500, y: 150, "text-anchor": "middle" });
-    label.textContent = "Not enough public history to draw a chart.";
+    label.textContent = "Not enough recorded prices to draw a chart.";
     svg.append(label);
     return;
   }
-  const width = 1000, height = 300, left = 12, right = 12, top = 16, bottom = 22;
+  const width = 1000, height = 300, left = 12, right = 12, top = 18, bottom = 24;
+  const values = cleanPoints.map(point => point.close);
   const min = Math.min(...values), max = Math.max(...values);
   const span = max - min || Math.max(Math.abs(max) * 0.02, 0.000001);
-  const x = i => left + (i / (values.length - 1)) * (width - left - right);
+  const x = i => left + (i / (cleanPoints.length - 1)) * (width - left - right);
   const y = value => top + ((max - value) / span) * (height - top - bottom);
   for (let i = 0; i < 4; i++) {
     const yy = top + i * (height - top - bottom) / 3;
@@ -182,6 +185,17 @@ function drawHistoryChart(points) {
   const area = path + " L " + x(values.length - 1) + " " + (height - bottom) + " L " + x(0) + " " + (height - bottom) + " Z";
   svg.append(svgNode("path", { d: area, class: "chart-area" }));
   svg.append(svgNode("path", { d: path, class: "chart-line" }));
+
+  // A live crosshair and readable tooltip follow the nearest daily point.
+  const crosshair = svgNode("line", { x1: x(values.length - 1), x2: x(values.length - 1), y1: top, y2: height - bottom, class: "chart-crosshair", visibility: "hidden" });
+  const focusDot = svgNode("circle", { cx: x(values.length - 1), cy: y(values[values.length - 1]), r: 5, class: "chart-focus-point", visibility: "hidden" });
+  const tooltip = svgNode("g", { class: "chart-tooltip", visibility: "hidden", "pointer-events": "none" });
+  const tooltipBg = svgNode("rect", { x: 0, y: 0, width: 188, height: 52, rx: 8, class: "chart-tooltip-bg" });
+  const tooltipDate = svgNode("text", { x: 10, y: 19, class: "chart-tooltip-date" });
+  const tooltipPrice = svgNode("text", { x: 10, y: 40, class: "chart-tooltip-price" });
+  tooltip.append(tooltipBg, tooltipDate, tooltipPrice);
+  svg.append(crosshair, focusDot, tooltip);
+
   const last = svgNode("circle", { cx: x(values.length - 1), cy: y(values[values.length - 1]), r: 4.5, class: "chart-last-point" });
   svg.append(last);
   const maxLabel = svgNode("text", { x: width - right, y: 12, "text-anchor": "end", class: "chart-value-label" });
@@ -189,6 +203,53 @@ function drawHistoryChart(points) {
   const minLabel = svgNode("text", { x: width - right, y: height - bottom - 4, "text-anchor": "end", class: "chart-value-label" });
   minLabel.textContent = historyUsd(min);
   svg.append(maxLabel, minLabel);
+  svg.setAttribute("tabindex", "0");
+  svg.setAttribute("aria-label", "Interactive Pi price chart. Hover, tap, or use the left and right arrow keys to inspect each date and price.");
+
+  let selectedIndex = cleanPoints.length - 1;
+  const showPoint = index => {
+    selectedIndex = Math.max(0, Math.min(cleanPoints.length - 1, index));
+    const point = cleanPoints[selectedIndex];
+    const px = x(selectedIndex), py = y(point.close);
+    crosshair.setAttribute("x1", px); crosshair.setAttribute("x2", px);
+    crosshair.setAttribute("visibility", "visible");
+    focusDot.setAttribute("cx", px); focusDot.setAttribute("cy", py);
+    focusDot.setAttribute("visibility", "visible");
+    const boxX = px > width * 0.68 ? px - 200 : Math.min(width - 200, px + 14);
+    const boxY = py < 82 ? Math.min(height - bottom - 56, py + 12) : Math.max(top, py - 62);
+    tooltip.setAttribute("transform", "translate(" + boxX + " " + boxY + ")");
+    tooltipDate.textContent = historyDate(point.time) + (point.is_live ? " · LIVE" : "");
+    tooltipPrice.textContent = historyUsd(point.close) + " per PI";
+    tooltip.setAttribute("visibility", "visible");
+    setText(elements.historyLatest, historyUsd(point.close));
+    setText(elements.chartEnd, historyDate(point.time) + (point.is_live ? " · LIVE" : ""));
+  };
+  const hidePoint = () => {
+    crosshair.setAttribute("visibility", "hidden");
+    focusDot.setAttribute("visibility", "hidden");
+    tooltip.setAttribute("visibility", "hidden");
+  };
+  const selectFromPointer = event => {
+    const rect = svg.getBoundingClientRect();
+    if (!rect.width) return;
+    const svgX = (event.clientX - rect.left) / rect.width * width;
+    const ratio = Math.max(0, Math.min(1, (svgX - left) / (width - left - right)));
+    showPoint(Math.round(ratio * (cleanPoints.length - 1)));
+  };
+  svg.onpointermove = selectFromPointer;
+  svg.onpointerdown = event => {
+    selectFromPointer(event);
+    if (event.pointerType === "touch") event.preventDefault();
+  };
+  svg.onpointerleave = hidePoint;
+  svg.onblur = hidePoint;
+  svg.onkeydown = event => {
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault();
+      showPoint(selectedIndex + (event.key === "ArrowRight" ? 1 : -1));
+    } else if (event.key === "Escape") hidePoint();
+  };
+  showPoint(cleanPoints.length - 1);
 }
 function renderHistory(data) {
   const points = Array.isArray(data.points) ? data.points : [];
