@@ -53,6 +53,42 @@
           </div>
           <p class="fine-print">Exchange figures are reported independently by each venue. Volumes are not a measure of total Pi market volume, and prices may differ between venues.</p>
         </section>
+
+        <section class="history-section" aria-labelledby="historyTitle">
+          <div class="section-heading">
+            <div><div class="eyebrow small">PUBLIC HISTORICAL DATA</div><h2 id="historyTitle">PI price history</h2><p class="section-intro">Historical prices from Yahoo Finance. Choose a period to explore the trend.</p></div>
+            <span id="historyStatus" class="history-status" role="status">Loading history…</span>
+          </div>
+          <div class="range-controls" role="group" aria-label="Historical chart range">
+            <button type="button" data-history-range="1mo">1M</button>
+            <button type="button" data-history-range="6mo">6M</button>
+            <button type="button" data-history-range="1y" class="active" aria-pressed="true">1Y</button>
+            <button type="button" data-history-range="5y">5Y</button>
+            <button type="button" data-history-range="max">MAX</button>
+          </div>
+          <div class="chart-summary">
+            <div><span class="stat-label">Period change</span><strong id="historyChange">—</strong></div>
+            <div><span class="stat-label">Period high</span><strong id="periodHigh">—</strong></div>
+            <div><span class="stat-label">Period low</span><strong id="periodLow">—</strong></div>
+            <div><span class="stat-label">Latest close</span><strong id="historyLatest">—</strong></div>
+          </div>
+          <div class="price-chart-wrap"><svg id="priceChart" class="price-chart" viewBox="0 0 1000 300" role="img" aria-label="Pi historical USD price chart"><text x="500" y="150" text-anchor="middle">Loading price history…</text></svg></div>
+          <div class="chart-axis"><span id="chartStart">—</span><span id="chartEnd">—</span></div>
+          <p class="fine-print">Historical chart data is provided by Yahoo Finance and may be delayed, incomplete or revised. Historical prices do not guarantee future performance.</p>
+        </section>
+        <section class="statistics-section" aria-labelledby="statisticsTitle">
+          <div class="section-heading"><div><div class="eyebrow small">MORE THAN THE LAST PRICE</div><h2 id="statisticsTitle">Trading statistics</h2></div></div>
+          <div class="statistics-grid">
+            <article class="stat-card"><span class="stat-label">Previous close</span><strong id="previousClose">—</strong><small>Yahoo Finance reference</small></article>
+            <article class="stat-card"><span class="stat-label">Latest open</span><strong id="latestOpen">—</strong><small>Most recent available candle</small></article>
+            <article class="stat-card"><span class="stat-label">52-week high</span><strong id="high52">—</strong><small>Reported by Yahoo Finance</small></article>
+            <article class="stat-card"><span class="stat-label">52-week low</span><strong id="low52">—</strong><small>Reported by Yahoo Finance</small></article>
+            <article class="stat-card"><span class="stat-label">All-time high in available history</span><strong id="allTimeHigh">—</strong><small id="allTimeHighDate">Based on returned chart history</small></article>
+            <article class="stat-card"><span class="stat-label">All-time low in available history</span><strong id="allTimeLow">—</strong><small id="allTimeLowDate">Based on returned chart history</small></article>
+            <article class="stat-card"><span class="stat-label">Volume / market cap</span><strong id="volumeMarketCap">—</strong><small>Tracked exchange volume ÷ estimated market cap</small></article>
+            <article class="stat-card"><span class="stat-label">Data source</span><strong id="historySource">Yahoo Finance</strong><small id="historyUpdated">Waiting for update</small></article>
+          </div>
+        </section>
         <section class="details-grid">
           <article class="panel">
             <div class="panel-heading"><div><div class="eyebrow small">MARKET DETAILS</div><h2>At a glance</h2></div><span class="panel-mark">01</span></div>
@@ -73,9 +109,9 @@
           </article>
         </section>
         <section class="next-panel">
-          <div class="next-icon">↗</div><div><div class="eyebrow small">STARTING POINT</div><h2>More market tools can come next.</h2><p>Next sensible additions: price history, market depth, and a Pi-to-USD/PHP converter.</p></div>
+          <div class="next-icon">↗</div><div><div class="eyebrow small">STARTING POINT</div><h2>Market context, historical trends and public-source statistics.</h2><p>This page combines tracked exchange snapshots with publicly available historical market data. Source coverage varies by statistic.</p></div>
         </section>
-        <footer class="page-note">Independent community market overview · Data provided by public exchange APIs · Not financial advice</footer>
+        <footer class="page-note">Independent community market overview · Public market data from exchange feeds and Yahoo Finance · Not financial advice</footer>
       </main>
       <bulbybot-footer></bulbybot-footer>
     </div>
