@@ -1,0 +1,86 @@
+const API_URL = "/api/market";
+const REFRESH_MS = 60_000;
+
+const elements = {
+  feedStatus: document.getElementById("feedStatus"),
+  updatedAt: document.getElementById("updatedAt"),
+  price: document.getElementById("priceValue"),
+  change: document.getElementById("changePill"),
+  marketCap: document.getElementById("marketCapValue"),
+  volume: document.getElementById("volumeValue"),
+  supply: document.getElementById("supplyValue"),
+  range: document.getElementById("rangeValue"),
+  source: document.getElementById("sourceValue"),
+  detailUpdated: document.getElementById("detailUpdated"),
+};
+
+const usd = (value, digits = 2) => {
+  if (!Number.isFinite(Number(value))) return "—";
+  return Number(value).toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: digits, maximumFractionDigits: digits });
+};
+const compactUsd = value => {
+  if (!Number.isFinite(Number(value))) return "—";
+  const n = Number(value);
+  if (n >= 1e12) return "$" + (n / 1e12).toFixed(2) + "T";
+  if (n >= 1e9) return "$" + (n / 1e9).toFixed(2) + "B";
+  if (n >= 1e6) return "$" + (n / 1e6).toFixed(2) + "M";
+  if (n >= 1e3) return "$" + (n / 1e3).toFixed(2) + "K";
+  return usd(n, 2);
+};
+const amount = (value, digits = 2) => Number.isFinite(Number(value)) ? Number(value).toLocaleString("en-US", { maximumFractionDigits: digits }) : "—";
+const timestamp = value => {
+  if (!value) return "Time unavailable";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Time unavailable" : date.toLocaleString("en-GB", { timeZone: "UTC", dateStyle: "medium", timeStyle: "short", hour12: false }) + " UTC";
+};
+function setText(element, value) {
+  if (element) element.textContent = value;
+}
+function formatPrice(value) {
+  if (!Number.isFinite(Number(value))) return "—";
+  const n = Number(value);
+  return usd(n, n < 0.01 ? 6 : n < 1 ? 4 : 2);
+}
+function render(data) {
+  setText(elements.price, formatPrice(data.price_usd));
+  setText(elements.marketCap, compactUsd(data.market_cap_usd));
+  setText(elements.volume, compactUsd(data.volume_24h_usd));
+  setText(elements.supply, Number.isFinite(Number(data.circulating_supply)) ? amount(data.circulating_supply, 0) + " PI" : "—");
+  setText(elements.range, Number.isFinite(Number(data.low_24h_usd)) && Number.isFinite(Number(data.high_24h_usd))
+    ? formatPrice(data.low_24h_usd) + " – " + formatPrice(data.high_24h_usd) : "—");
+  setText(elements.source, data.source_label || "Public exchange APIs");
+  setText(elements.updatedAt, "Updated " + timestamp(data.updated_at));
+  setText(elements.detailUpdated, timestamp(data.updated_at));
+  const pct = Number(data.change_24h_pct);
+  if (elements.change) {
+    elements.change.classList.toggle("positive", Number.isFinite(pct) && pct >= 0);
+    elements.change.classList.toggle("negative", Number.isFinite(pct) && pct < 0);
+    setText(elements.change, Number.isFinite(pct) ? (pct > 0 ? "+" : "") + pct.toFixed(2) + "% · 24H" : "24H CHANGE —");
+  }
+  setText(elements.feedStatus, "Live market feed · refreshes every minute");
+}
+let running = false;
+async function refresh() {
+  if (running) return;
+  running = true;
+  try {
+    const response = await fetch(API_URL, { headers: { Accept: "application/json" }, cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.error || "Market feed unavailable");
+    render(data);
+  } catch {
+    setText(elements.feedStatus, "Market feed temporarily unavailable");
+    if (!elements.price || elements.price.textContent === "—") setText(elements.updatedAt, "No current data available");
+  } finally { running = false; }
+}
+void refresh();
+window.setInterval(refresh, REFRESH_MS);
+try {
+  if (localStorage.getItem("crumbs-theme") === "pi") document.documentElement.dataset.theme = "violet";
+} catch {}
+document.addEventListener("bulbybot-theme-toggle", event => {
+  const violet = event.detail?.theme === "violet";
+  if (violet) document.documentElement.dataset.theme = "violet";
+  else delete document.documentElement.dataset.theme;
+  try { localStorage.setItem("crumbs-theme", violet ? "pi" : "green"); } catch {}
+});
