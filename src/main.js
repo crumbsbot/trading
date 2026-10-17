@@ -151,7 +151,10 @@ let historyBusy = false;
 const historyUsd = value => hasNumber(value) ? usd(value, Number(value) < 0.01 ? 6 : Number(value) < 1 ? 4 : 2) : "—";
 const historyDate = value => {
   if (!Number.isFinite(Number(value))) return "—";
-  return new Date(Number(value) * 1000).toLocaleDateString("en-GB", { timeZone: "UTC", day: "2-digit", month: "short", year: "numeric" });
+  const options = selectedRange === "1d" || selectedRange === "1w"
+    ? { timeZone: "UTC", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }
+    : { timeZone: "UTC", day: "2-digit", month: "short", year: "numeric" };
+  return new Date(Number(value) * 1000).toLocaleString("en-GB", options);
 };
 function svgNode(name, attrs = {}) {
   const node = document.createElementNS("http://www.w3.org/2000/svg", name);
