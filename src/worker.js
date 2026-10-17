@@ -129,56 +129,77 @@ async function marketData() {
 }
 
 
-const HISTORY_RANGES = new Map([["1mo", 30], ["3mo", 90], ["6mo", 180], ["1y", 365]]);
+const HISTORY_RANGES = new Map([["1d", 1], ["1w", 7], ["1mo", 30], ["3mo", 90], ["6mo", 180], ["1y", 365], ["all", null]]);
 
 async function historyData(range) {
   if (!HISTORY_RANGES.has(range)) range = "1y";
   const days = HISTORY_RANGES.get(range);
   const endDate = new Date();
-  const startDate = new Date(endDate.getTime() - days * 86400000);
+  const startDate = days == null ? new Date(0) : new Date(endDate.getTime() - days * 86400000);
   const startDay = startDate.toISOString().slice(0, 10);
   const endDay = endDate.toISOString().slice(0, 10);
-  const allPoints = dailyPriceHistory.map(row => ({
-    date: row.date,
-    time: Math.floor(Date.parse(row.date + "T00:00:00Z") / 1000),
-    open: null,
-    high: null,
-    low: null,
-    close: Number(row.price_usd),
-    volume: null,
-    market_cap: null
-  })).filter(point => Number.isFinite(point.time) && Number.isFinite(point.close) && point.close > 0)
-    .sort((a, b) => a.time - b.time);
+  let allPoints;
+  if (range === "1d" || range === "1w") {
+    // Gate.io provides intraday candles; the archived price list is daily only.
+    const interval = range === "1d" ? "1h" : "4h";
+    const limit = range === "1d" ? 24 : 42;
+    const candles = await fetchJson("https://api.gateio.ws/api/v4/spot/candlesticks?currency_pair=PI_USDT&interval=" + interval + "&limit=" + limit, 7000);
+    allPoints = candles.map(row => ({
+      date: new Date(Number(row[0]) * 1000).toISOString().slice(0, 10),
+      time: Number(row[0]),
+      open: Number(row[5]),
+      high: Number(row[3]),
+      low: Number(row[4]),
+      close: Number(row[2]),
+      volume: Number(row[1]),
+      market_cap: null
+    })).filter(point => Number.isFinite(point.time) && Number.isFinite(point.close) && point.close > 0)
+      .sort((a, b) => a.time - b.time);
+  } else {
+    allPoints = dailyPriceHistory.map(row => ({
+      date: row.date,
+      time: Math.floor(Date.parse(row.date + "T00:00:00Z") / 1000),
+      open: null,
+      high: null,
+      low: null,
+      close: Number(row.price_usd),
+      volume: null,
+      market_cap: null
+    })).filter(point => Number.isFinite(point.time) && Number.isFinite(point.close) && point.close > 0)
+      .sort((a, b) => a.time - b.time);
+  }
   const points = allPoints.filter(point => point.date >= startDay && point.date <= endDay);
 
-  // Add today's live exchange price as an explicitly current-day point.
-  // It is an indicative live price, not a completed daily close.
+  // Daily history gets a separate indicative live-price point for today.
+  // Intraday ranges already use live exchange candles, so don't inject a duplicate day.
   const today = new Date().toISOString().slice(0, 10);
   let hasLiveToday = false;
-  try {
-    const liveResponse = await marketData();
-    const live = await liveResponse.json();
-    const livePrice = Number(live.price_usd);
-    if (liveResponse.ok && Number.isFinite(livePrice) && livePrice > 0 && today >= startDay && today <= endDay) {
-      const livePoint = {
-        date: today,
-        time: Math.floor(Date.parse(today + "T00:00:00Z") / 1000),
-        open: null,
-        high: null,
-        low: null,
-        close: livePrice,
-        volume: null,
-        market_cap: null,
-        is_live: true
-      };
-      const todayIndex = points.findIndex(point => point.date === today);
-      if (todayIndex >= 0) points[todayIndex] = livePoint;
-      else points.push(livePoint);
-      points.sort((a, b) => a.time - b.time);
-      hasLiveToday = true;
+  if (range !== "1d" && range !== "1w") {
+    try {
+      const liveResponse = await marketData();
+      const live = await liveResponse.json();
+      const livePrice = Number(live.price_usd);
+      if (liveResponse.ok && Number.isFinite(livePrice) && livePrice > 0 && today >= startDay && today <= endDay) {
+        const livePoint = {
+          date: today,
+          time: Math.floor(Date.parse(today + "T00:00:00Z") / 1000),
+          open: null,
+          high: null,
+          low: null,
+          close: livePrice,
+          volume: null,
+          market_cap: null,
+          is_live: true
+        };
+        const todayIndex = points.findIndex(point => point.date === today);
+        if (todayIndex >= 0) points[todayIndex] = livePoint;
+        else points.push(livePoint);
+        points.sort((a, b) => a.time - b.time);
+        hasLiveToday = true;
+      }
+    } catch {
+      // Keep the recorded history usable if live exchanges are temporarily unavailable.
     }
-  } catch {
-    // Keep the recorded history usable if live exchanges are temporarily unavailable.
   }
 
   if (points.length < 2) throw new Error("The recorded daily price list contains too few points for this range");
@@ -192,7 +213,7 @@ async function historyData(range) {
     symbol: "PI",
     currency: "USD",
     range,
-    interval: "daily",
+    interval: range === "1d" ? "hourly" : range === "1w" ? "4-hour" : "daily",
     points,
     statistics: {
       current_price_usd: latest.close,
