@@ -17,6 +17,7 @@ const elements = {
   exchangeGrid: document.getElementById("exchangeGrid"),
   priceSpread: document.getElementById("priceSpread"),
   historyStatus: document.getElementById("historyStatus"),
+  historyDescription: document.getElementById("historyDescription"),
   priceChart: document.getElementById("priceChart"),
   historyChange: document.getElementById("historyChange"),
   periodHigh: document.getElementById("periodHigh"),
@@ -256,6 +257,16 @@ function drawHistoryChart(points) {
 }
 function renderHistory(data) {
   const points = Array.isArray(data.points) ? data.points : [];
+  const descriptions = {
+    "1d": "Hourly PI/USDT candles from Gate.io for the latest day.",
+    "1w": "Four-hour PI/USDT candles from Gate.io for the latest week.",
+    "1mo": "Recorded daily PI prices for the latest month.",
+    "3mo": "Recorded daily PI prices for the latest three months.",
+    "6mo": "Recorded daily PI prices for the latest six months.",
+    "1y": "Recorded daily PI prices for the latest year.",
+    "all": "All available recorded daily PI prices, including today's indicative live price when available."
+  };
+  setText(elements.historyDescription, descriptions[selectedRange] || descriptions["1y"]);
   const stats = data.statistics || {};
   drawHistoryChart(points);
   const first = points.find(point => hasNumber(point.close));
