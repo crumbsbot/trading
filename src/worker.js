@@ -229,7 +229,7 @@ async function historyData(range) {
       latest_timestamp: latest.time,
       previous_point_usd: previous ? previous.close : null
     },
-    source: hasLiveToday ? "Recorded daily PI price history + live exchange price (current day)" : "Recorded daily PI price history" + (new Date().toISOString().slice(0, 10) === latest.date ? "" : " (latest recorded day: " + latest.date + ")"),
+    source: range === "1d" ? "Gate.io PI/USDT hourly candles" : range === "1w" ? "Gate.io PI/USDT four-hour candles" : hasLiveToday ? "Recorded daily PI price history + live exchange price (current day)" : "Recorded daily PI price history" + (new Date().toISOString().slice(0, 10) === latest.date ? "" : " (latest recorded day: " + latest.date + ")"),
     updated_at: new Date().toISOString()
   };
 }
